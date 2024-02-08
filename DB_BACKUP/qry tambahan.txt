@@ -1,0 +1,498 @@
+ALTER TABLE master.manggota
+    ADD COLUMN type_kendaraan character varying(255) COLLATE pg_catalog."default";
+
+ALTER TABLE trans.gate
+    ADD COLUMN nama_anggota character varying(255) COLLATE pg_catalog."default";
+
+-- FUNCTION: trans.fn_proc_ins_kartu_hilang_petugas(character varying, character varying, character varying, character varying, character varying, integer, character varying, character varying, character varying)
+
+ DROP FUNCTION trans.fn_proc_ins_kartu_hilang_petugas(character varying, character varying, character varying, character varying, integer, character varying, character varying, character varying);
+
+CREATE OR REPLACE FUNCTION trans.fn_proc_ins_kartu_hilang_petugas(
+	pnokarcis character varying,
+	pjns_kendaraan character varying,
+	pnopol character varying,
+	puser character varying,
+	pgate character varying,
+	pshift integer,
+	pcustomer character varying,
+	ptype_kendaraan character varying,
+	pnama_anggota character varying)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+AS $BODY$
+declare
+--  vNOKARCIS varchar(30);
+  vJNSVEHICLE varchar(30);
+  vTARIF numeric(17,2);  
+  vShift integer;
+  
+begin
+
+--	SELECT to_char(current_timestamp, 'YYYYMMDDHH24MISS')::varchar(30) into vNOKARCIS;
+	select 0 into vTARIF;
+
+	select a.id_jns_kendaraan into vJNSVEHICLE
+	from master.mgate_ot a
+	left join master.mjns_kendaraan b on b.id_jns_kendaraan=a.id_jns_kendaraan
+	where a.id_gate=pgate;	
+
+--	select master.fn_gen_shift() into vShift;	
+
+	insert into trans.gate
+	( no_karcis,
+	  id_jns_anggota,
+	  id_jns_kendaraan,
+	  jam_masuk,
+	  jam_keluar,
+	  tarif,
+	  denda,
+	  foto_bg_ot,
+	  nopol,
+	  usr_ins,
+	  usr_upd,
+	  dt_ins,
+	  dt_upd,
+	  iskeluar,
+	  no_gate_out,
+	  shift,
+	  status,
+	  keterangan,
+	  type_kendaraan,
+	  nama_anggota)
+	  values
+	(
+	  pnokarcis,
+	  'MEMBER',
+	  vJNSVEHICLE,
+	  current_timestamp,
+	  current_timestamp,
+	  vTARIF,
+	  vTARIF,
+	  trim(pnokarcis||'.jpeg'),
+	  pnopol,
+	  puser,
+	  puser,
+	  current_timestamp,
+	  current_timestamp,
+	  '1',
+	  to_number(pgate,'99')::integer,
+	  pshift,
+	  '5',
+	  pcustomer,
+	  ptype_kendaraan,
+	  pnama_anggota); 
+
+END;
+$BODY$;
+
+ALTER FUNCTION trans.fn_proc_ins_kartu_hilang_petugas(character varying, character varying, character varying, character varying, character varying, integer, character varying, character varying, character varying)
+    OWNER TO ideas;
+
+
+ DROP VIEW trans.vbrowse_gate;
+
+CREATE OR REPLACE VIEW trans.vbrowse_gate
+ AS
+ SELECT a.no_karcis,
+    a.id_jns_anggota,
+    a.id_jns_kendaraan,
+    a.no_kartu_char,
+    a.jam_masuk,
+    a.jam_keluar,
+    a.tarif,
+    a.denda,
+    a.foto_bg_in,
+    a.foto_bg_ot,
+    a.nopol,
+    a.usr_ins,
+    a.usr_upd,
+    a.dt_ins,
+    a.dt_upd,
+    a.iskeluar,
+    b.jns_anggota,
+    c.nama_anggota,
+    a.jam_keluar::timestamp with time zone - a.jam_masuk::timestamp with time zone AS lama_jam,
+    (date_part('epoch'::text, a.jam_keluar::timestamp with time zone - a.jam_masuk::timestamp with time zone) / 60::double precision)::numeric(9,0) AS lama_menit,
+    date_part('days'::text, a.jam_keluar::timestamp with time zone - a.jam_masuk::timestamp with time zone)::character varying AS hari,
+    date_part('hour'::text, a.jam_keluar::timestamp with time zone - a.jam_masuk::timestamp with time zone)::character varying AS jam,
+    date_part('minute'::text, a.jam_keluar::timestamp with time zone - a.jam_masuk::timestamp with time zone)::character varying AS menit,
+    d.jns_kendaraan, a.type_kendaraan, a.nama_anggota as nama_member
+   FROM trans.gate a
+     LEFT JOIN master.mjns_anggota b ON b.id_jns_anggota::text = a.id_jns_anggota::text
+     LEFT JOIN master.manggota c ON c.no_kartu_char::text = a.no_kartu_char::text
+     LEFT JOIN master.mjns_kendaraan d ON d.id_jns_kendaraan::text = a.id_jns_kendaraan::text
+  ORDER BY a.no_karcis;
+
+ALTER TABLE trans.vbrowse_gate
+    OWNER TO ideas;
+
+
+-- FUNCTION: public.fn_get_detail_shift(character varying, character varying)
+
+ DROP FUNCTION public.fn_get_detail_shift(character varying, character varying);
+
+CREATE OR REPLACE FUNCTION public.fn_get_detail_shift(
+	ptgl character varying,
+	pshift character varying)
+    RETURNS TABLE(no_karcis character varying, id_jns_anggota character varying, id_jns_kendaraan character varying, no_kartu_char character varying, jam_masuk timestamp without time zone, jam_keluar timestamp without time zone, tarif numeric, denda numeric, foto_bg_in character varying, foto_bg_ot character varying, nopol character varying, usr_ins character varying, usr_upd character varying, dt_ins timestamp without time zone, dt_upd timestamp without time zone, iskeluar character varying, no_rfid character varying, no_gate_in integer, no_gate_out integer, shift integer, status character varying, jns_pembayaran character varying, keterangan character varying, type_kendaraan character varying, nama_anggota character varying, dstatus character varying, jns_anggota character varying, jns_kendaraan character varying, pintu_masuk character varying, pintu_keluar character varying) 
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    ROWS 1000
+AS $BODY$
+
+DECLARe
+   vshift integer;
+   ptgl0 varchar(10);
+   ptgl1 varchar(10);
+   ptgl2 varchar(10);
+   int_akhir interval;
+   int_awal interval;   
+BEGIN 
+
+ptgl0:= ptgl;
+ptgl1:= to_char((to_timestamp(ptgl,'dd-mm-yyyy') + interval '1 day')::timestamp without time zone,'dd-mm-yyyy')::varchar(10);
+vshift:= to_number(pshift,'99')::integer;
+ 
+select a.tawal - to_timestamp('00-00-00','HH24-MI-SS')::TIME WITHOUT TIME ZONE  into int_awal
+from master.mshift a
+where a.shift=3 
+order by a.id_shift asc
+limit 1;
+
+select  ((x.takhir-x.tawal) + interval '2 hour  1 second') into  int_akhir
+from master.mshift x
+where x.shift=3 
+order by x.id_shift desc
+limit 1;
+
+if vshift=3 then
+
+	RETURN QUERY	
+      
+ 	select a.*, s.diskripsi as dstatus, b.jns_anggota, c.jns_kendaraan, d.keterangan as pintu_masuk, e.keterangan as pintu_keluar
+	from trans.gate a
+	left join master.mstatus s on s.id_status=a.status
+	left join master.mjns_anggota b on b.id_jns_anggota=a.id_jns_anggota
+	left join master.mjns_kendaraan c on c.id_jns_kendaraan=a.id_jns_kendaraan 
+	left join master.mgate_in d on d.id_gate=a.no_gate_in::varchar
+	left join master.mgate_ot e on e.id_gate=a.no_gate_out::varchar
+	where a.shift=vshift and
+			a.jam_keluar between to_timestamp(ptgl0,'dd-mm-yyyy') + int_awal 
+					and to_timestamp(ptgl1,'dd-mm-yyyy')  + interval '7 hour  1 second'
+	order by a.jam_keluar;     
+
+else
+
+	RETURN QUERY
+
+ 	select a.*, s.diskripsi as dstatus, b.jns_anggota, c.jns_kendaraan, d.keterangan as pintu_masuk, e.keterangan as pintu_keluar
+	from trans.gate a
+	left join master.mstatus s on s.id_status=a.status
+	left join master.mjns_anggota b on b.id_jns_anggota=a.id_jns_anggota
+	left join master.mjns_kendaraan c on c.id_jns_kendaraan=a.id_jns_kendaraan 
+	left join master.mgate_in d on d.id_gate=a.no_gate_in::varchar
+	left join master.mgate_ot e on e.id_gate=a.no_gate_out::varchar
+	where a.shift=vshift and to_char(a.jam_keluar,'dd-mm-yyyy')::varchar(30)=ptgl
+	order by a.jam_keluar;
+			
+end if;
+
+END;
+
+$BODY$;
+
+ALTER FUNCTION public.fn_get_detail_shift(character varying, character varying)
+    OWNER TO ideas;
+
+ALTER TABLE trans.karcis_hilang
+    ADD COLUMN tarif numeric(17,2) DEFAULT 0;
+
+-- FUNCTION: public.fn_get_total_shift(character varying, character varying, integer)
+
+ DROP FUNCTION public.fn_get_total_shift(character varying, character varying);
+
+CREATE OR REPLACE FUNCTION public.fn_get_total_shift(
+	ptgl character varying,
+	pshift character varying,
+	pgate_id character varying)
+    RETURNS TABLE(nomor integer, nilai_tukar numeric, syarat character varying, rancangan character varying, departemen character varying, proyek character varying, id_jns_anggota character varying, id_jns_kendaraan character varying, jumlah numeric, shift integer, no_gate_out integer, jml_kendaraan numeric, usr_upd character varying, status character varying) 
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    ROWS 1000
+AS $BODY$
+DECLARe
+   vshift integer;
+   vGate Integer;
+   ptgl0 varchar(10);
+   ptgl1 varchar(10);
+   ptgl2 varchar(10);
+   int_akhir interval;
+   int_awal interval;   
+BEGIN 
+
+ 
+ ptgl0:= ptgl;
+ ptgl1:= to_char((to_timestamp(ptgl,'dd-mm-yyyy') + interval '1 day')::timestamp without time zone,'dd-mm-yyyy')::varchar(10);
+ vshift:= to_number(pshift,'99')::integer;
+ vGate:= to_number(pgate_id,'99')::integer;
+ 
+select a.tawal - to_timestamp('00-00-00','HH24-MI-SS')::TIME WITHOUT TIME ZONE  into int_awal
+from master.mshift a
+where a.shift=3 
+order by a.id_shift asc
+limit 1;
+
+select  ((x.takhir-x.tawal) + interval '1 hour  1 second') into  int_akhir
+from master.mshift x
+where x.shift=3 
+order by x.id_shift desc
+limit 1 ;
+
+if vshift=3 then
+
+	RETURN QUERY	
+      
+ 	select 1::INTEGER AS nomor, '1'::numeric(17,2) as nilai_tukar, 'C.O.D'::varchar as syarat, 'Sales Invoice'::varchar as rancangan, 'PARKIR'::varchar as departemen, 
+	'Non Project'::varchar as proyek,
+	a.id_jns_anggota, a.id_jns_kendaraan, sum(a.tarif)::NUMERIC(17,2) as jumlah, a.shift, a.no_gate_out,
+	count(a.*)::numeric(9,0) as jml_kendaraan, a.usr_upd, s.diskripsi as status
+	from trans.gate a
+	left join master.mstatus s on s.id_status=a.status 
+	where a.shift=vshift and a.jam_keluar between  to_timestamp(ptgl0,'dd-mm-yyyy') + int_awal  and to_timestamp(ptgl1,'dd-mm-yyyy') + int_akhir --+ interval '7 hour  1 second' 
+        group by a.id_jns_anggota, a.id_jns_kendaraan,  a.shift, a.no_gate_out, a.usr_upd, s.diskripsi;       
+
+else
+
+	RETURN QUERY
+
+	select 1::INTEGER AS nomor, '1'::numeric(17,2) as nilai_tukar, 'C.O.D'::varchar as syarat, 'Sales Invoice'::varchar as rancangan, 'PARKIR'::varchar as departemen, 
+	'Non Project'::varchar as proyek,
+	a.id_jns_anggota, a.id_jns_kendaraan, sum(a.tarif)::NUMERIC(17,2) as jumlah, a.shift, a.no_gate_out,
+	count(a.*)::numeric(9,0) as jml_kendaraan, a.usr_upd, s.diskripsi as status
+	from trans.gate a
+	left join master.mstatus s on s.id_status=a.status 
+	where a.shift=vshift and to_char(a.jam_keluar,'dd-mm-yyyy')::varchar(30)=ptgl and a.no_gate_out=vGate
+        group by a.id_jns_anggota, a.id_jns_kendaraan,  a.shift, a.no_gate_out, a.usr_upd, s.diskripsi, a.status;
+			
+end if;
+
+END;
+$BODY$;
+
+ALTER FUNCTION public.fn_get_total_shift(character varying, character varying, character varying)
+    OWNER TO ideas;
+
+DROP FUNCTION public.fn_get_detail_shift(character varying, character varying);
+
+CREATE OR REPLACE FUNCTION public.fn_get_detail_shift(
+	ptgl character varying,
+	pshift character varying,
+	pgate character varying)
+    RETURNS TABLE(no_karcis character varying, id_jns_anggota character varying, id_jns_kendaraan character varying, no_kartu_char character varying, jam_masuk timestamp without time zone, jam_keluar timestamp without time zone, tarif numeric, denda numeric, foto_bg_in character varying, foto_bg_ot character varying, nopol character varying, usr_ins character varying, usr_upd character varying, dt_ins timestamp without time zone, dt_upd timestamp without time zone, iskeluar character varying, no_rfid character varying, no_gate_in integer, no_gate_out integer, shift integer, status character varying, jns_pembayaran character varying, keterangan character varying, type_kendaraan character varying, nama_anggota character varying, dstatus character varying, jns_anggota character varying, jns_kendaraan character varying, pintu_masuk character varying, pintu_keluar character varying) 
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    ROWS 1000
+AS $BODY$
+
+DECLARe
+   vshift integer;
+   vGate Integer;
+   ptgl0 varchar(10);
+   ptgl1 varchar(10);
+   ptgl2 varchar(10);
+   int_akhir interval;
+   int_awal interval;   
+BEGIN 
+
+ptgl0:= ptgl;
+ptgl1:= to_char((to_timestamp(ptgl,'dd-mm-yyyy') + interval '1 day')::timestamp without time zone,'dd-mm-yyyy')::varchar(10);
+vshift:= to_number(pshift,'99')::integer;
+vgate:= to_number(pgate,'99')::integer;
+ 
+select a.tawal - to_timestamp('00-00-00','HH24-MI-SS')::TIME WITHOUT TIME ZONE  into int_awal
+from master.mshift a
+where a.shift=3 
+order by a.id_shift asc
+limit 1;
+
+select  ((x.takhir-x.tawal) + interval '2 hour  1 second') into  int_akhir
+from master.mshift x
+where x.shift=3 
+order by x.id_shift desc
+limit 1;
+
+if vshift=3 then
+
+	RETURN QUERY	
+      
+ 	select a.*, s.diskripsi as dstatus, b.jns_anggota, c.jns_kendaraan, d.keterangan as pintu_masuk, e.keterangan as pintu_keluar
+	from trans.gate a
+	left join master.mstatus s on s.id_status=a.status
+	left join master.mjns_anggota b on b.id_jns_anggota=a.id_jns_anggota
+	left join master.mjns_kendaraan c on c.id_jns_kendaraan=a.id_jns_kendaraan 
+	left join master.mgate_in d on d.id_gate=a.no_gate_in::varchar
+	left join master.mgate_ot e on e.id_gate=a.no_gate_out::varchar
+	where a.shift=vshift and
+			a.jam_keluar between to_timestamp(ptgl0,'dd-mm-yyyy') + int_awal 
+					and to_timestamp(ptgl1,'dd-mm-yyyy')  + interval '7 hour  1 second'
+	order by a.jam_keluar asc;     
+
+else
+
+	RETURN QUERY
+
+ 	select a.*, s.diskripsi as dstatus, b.jns_anggota, c.jns_kendaraan, d.keterangan as pintu_masuk, e.keterangan as pintu_keluar
+	from trans.gate a
+	left join master.mstatus s on s.id_status=a.status
+	left join master.mjns_anggota b on b.id_jns_anggota=a.id_jns_anggota
+	left join master.mjns_kendaraan c on c.id_jns_kendaraan=a.id_jns_kendaraan 
+	left join master.mgate_in d on d.id_gate=a.no_gate_in::varchar
+	left join master.mgate_ot e on e.id_gate=a.no_gate_out::varchar
+	where a.shift=vshift and to_char(a.jam_keluar,'dd-mm-yyyy')::varchar(30)=ptgl and a.no_gate_out=vGate
+	order by a.jam_keluar asc;
+			
+end if;
+
+END;
+
+$BODY$;
+
+ALTER FUNCTION public.fn_get_detail_shift(character varying, character varying, character varying)
+    OWNER TO ideas;
+
+
+-- FUNCTION: trans.fn_proc_ins_kartu_hilang_petugas(character varying, character varying, character varying, character varying, character varying, integer, character varying, character varying, character varying)
+
+ DROP FUNCTION trans.fn_proc_ins_kartu_hilang_petugas(character varying, character varying, character varying, character varying, character varying, integer, character varying, character varying, character varying);
+
+CREATE OR REPLACE FUNCTION trans.fn_proc_ins_kartu_hilang_petugas(
+	pnokarcis character varying,
+	pjns_kendaraan character varying,
+	pnopol character varying,
+	puser character varying,
+	pgate character varying,
+	pshift integer,
+	pcustomer character varying,
+	ptype_kendaraan character varying,
+	pnama_anggota character varying,
+	pno_kartu character varying)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+AS $BODY$
+declare
+--  vNOKARCIS varchar(30);
+  vJNSVEHICLE varchar(30);
+  vTARIF numeric(17,2);  
+  vShift integer;
+  vNoKartu character varying;
+  
+begin
+
+--	SELECT to_char(current_timestamp, 'YYYYMMDDHH24MISS')::varchar(30) into vNOKARCIS;
+	select 0 into vTARIF;
+
+	select a.id_jns_kendaraan into vJNSVEHICLE
+	from master.mgate_ot a
+	left join master.mjns_kendaraan b on b.id_jns_kendaraan=a.id_jns_kendaraan
+	where a.id_gate=pgate;	
+	
+	vNoKartu:= pno_kartu;
+
+--	select master.fn_gen_shift() into vShift;	
+
+	insert into trans.gate
+	( no_karcis,
+	  id_jns_anggota,
+	  id_jns_kendaraan,
+	  no_kartu_char,
+	  jam_masuk,
+	  jam_keluar,
+	  tarif,
+	  denda,
+	  foto_bg_ot,
+	  nopol,
+	  usr_ins,
+	  usr_upd,
+	  dt_ins,
+	  dt_upd,
+	  iskeluar,
+	  no_gate_out,
+	  shift,
+	  status,
+	  keterangan,
+	  type_kendaraan,
+	  nama_anggota)
+	  values
+	(
+	  pnokarcis,
+	  'MEMBER',
+	  vJNSVEHICLE,
+	  vNoKartu,
+	  current_timestamp,
+	  current_timestamp,
+	  vTARIF,
+	  vTARIF,
+	  trim(pnokarcis||'.jpeg'),
+	  pnopol,
+	  puser,
+	  puser,
+	  current_timestamp,
+	  current_timestamp,
+	  '1',
+	  to_number(pgate,'99')::integer,
+	  pshift,
+	  '5',
+	  pcustomer,
+	  ptype_kendaraan,
+	  pnama_anggota); 
+
+END;
+$BODY$;
+
+ALTER FUNCTION trans.fn_proc_ins_kartu_hilang_petugas(character varying, character varying, character varying, character varying, character varying, integer, character varying, character varying, character varying, character varying)
+    OWNER TO ideas;
+
+update master.mjns_anggota
+set id_jns_anggota='MEMBER', jns_anggota='MEMBER'
+where id_jns_anggota='PETUGAS';
+
+update master.mgate_ot
+set keterangan='PREMIUM CAR SPACE (Keberangkatan)'
+where id_gate in ('61', '62');
+
+CREATE OR REPLACE FUNCTION trans.fn_get_detail_karcis_hilang(
+	ptgl0 character varying,
+	ptgl1 character varying)
+    RETURNS TABLE(nopol character varying, nama_operator character varying, dt_ins timestamp without time zone, dt_upd timestamp without time zone, type_kendaraan character varying, tarif numeric)
+	LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    ROWS 1000
+AS $BODY$
+BEGIN 
+
+	RETURN QUERY	
+	select a.nopol, a.nama as nama_operator, a.dt_ins, a.dt_upd, a.type_kendaraan, a.tarif
+	from trans.karcis_hilang a
+	where a.dt_ins between to_timestamp(ptgl0, 'dd-mm-yyyy') and to_timestamp(ptgl1, 'dd-mm-yyyy') + interval '23 hour 59 minutes'
+	order by a.dt_ins asc;    
+
+END;
+$BODY$;
+
+ALTER FUNCTION trans.fn_get_detail_karcis_hilang(character varying, character varying)
+    OWNER TO ideas;

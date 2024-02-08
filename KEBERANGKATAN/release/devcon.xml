@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<application><setting>
+<database>
+<gate_out_id>61</gate_out_id>
+<gate_out_cam1>admin:p455w0rd@192.168.1.20:554/Streaming/Channels/1</gate_out_cam1>
+<gate_out_cam2>admin:p455w0rd@192.168.1.48:554/Streaming/Channels/1</gate_out_cam2>
+<gate_out_pict>D:/bgout/</gate_out_pict>
+<open_gate>:OPEN1;</open_gate>
+<com_port>COM3</com_port>
+<gate_out_printer>Microsoft Print to PDF</gate_out_printer>
+<gate_out_printer_bus>Microsoft Print to PDF</gate_out_printer_bus>
+<browse_pict_gate_in>D:/bgin/</browse_pict_gate_in>
+<browse_pict_gate_out>D:/bgout/</browse_pict_gate_out>
+<sepeda_motor>0</sepeda_motor>
+<mobil>0</mobil>
+<mobil_box>0</mobil_box>
+<truk>0</truk>
+<bus>0</bus>
+<cetak_karcis_bus>1</cetak_karcis_bus>
+<cetak_karcis_bus_nopol>1</cetak_karcis_bus_nopol>
+<buka_palang>0</buka_palang>
+<karcis_hilang>1</karcis_hilang>
+</database>
+</setting></application>

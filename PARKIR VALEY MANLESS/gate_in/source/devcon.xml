@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<application>
+<setting>
+<command>
+<header>166</header>
+<footer>169</footer>
+<loop_on>IN2ON</loop_on>
+<loop_off>IN2OFF</loop_off>
+<green_button>IN1ON</green_button>
+<open_gate>OPEN1</open_gate>
+<card_header>W</card_header>
+<snd1>MT00001</snd1>
+<snd2>MT00002</snd2>
+<dis1>DSD522005TKN TOMBOL|22005HIJAU</dis1>
+<dis2>DSD522005SLKN MASUK|22005TRM KASIH</dis2>
+</command>
+<timer>
+<t1>1000</t1>
+<t2>1000</t2>
+<t3>1000</t3>
+<t4>10000</t4>
+</timer>
+</setting>
+</application>

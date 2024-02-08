@@ -1,0 +1,30 @@
+>install node js
+>command "node -v" untuk cek installasi berhasil
+>npm install pm2 -g
+>command "pm2 -v" untuk cek installasi berhasil
+
+>install xampp
+>buka php.ini
+>>hilangkan ; pada pgsql dan pdopgsql
+>buka config xampp
+>>autostart module apache
+
+>copas folder dis-parkiran ke xampp/htdocs
+>buka folder dis-parkiran
+>buka file .env
+>ubah DB_HOST,DB_PORT,DB_DATABASE,DB_USERNAME,DB_PASSWORD
+>jalankan start pada apache
+>buka browser, buka url localhost/dis-parkiran/public/api/error
+
+>buka folder app/constant/constant.php untuk merubah variabel terminal, merchant, screetkey dll
+
+>buka cmd jalankan service kirim api
+>pm2 start C:\xampp\htdocs\dis-parkiran\ParkirExpress\ParkirExpress.js
+
+>install vscode (optional)
+
+buat scheduler
+>on startup
+>cari pm2 "user/appdata/roaming/npm"
+>isi argumen "start C:\xampp\htdocs\dis-parkiran\ParkirExpress\ParkirExpress.js"
+

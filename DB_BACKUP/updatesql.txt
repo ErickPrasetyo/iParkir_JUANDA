@@ -1,0 +1,52 @@
+CREATE SEQUENCE IF NOT EXISTS trans.sq_fee
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+ALTER SEQUENCE trans.sq_fee
+    OWNER TO ideas;
+
+CREATE TABLE IF NOT EXISTS trans.fee
+(
+    id_fee bigint NOT NULL DEFAULT nextval('trans.sq_fee'::regclass),
+	nokarcis character varying(255) COLLATE pg_catalog."default",
+    nopol character varying(255) COLLATE pg_catalog."default",
+	jam_masuk timestamp without time zone,
+	jam_keluar timestamp without time zone,
+    usr_ins character varying(30) COLLATE pg_catalog."default" NOT NULL,
+    usr_upd character varying(30) COLLATE pg_catalog."default" NOT NULL,
+    dt_ins timestamp without time zone NOT NULL,
+    dt_upd timestamp without time zone NOT NULL,
+    tarif numeric(17,2) DEFAULT 0,
+    CONSTRAINT pk_fee PRIMARY KEY (id_fee)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS trans.fee
+    OWNER to ideas;
+
+-- Trigger: tbi_date_ins
+
+-- DROP TRIGGER IF EXISTS tbi_date_ins ON trans.karcis_hilang;
+
+CREATE TRIGGER tbi_date_ins
+    BEFORE INSERT
+    ON trans.fee
+    FOR EACH ROW
+    EXECUTE FUNCTION master.fn_tbi_date_ins();
+
+-- Trigger: tbu_date_upd
+
+-- DROP TRIGGER IF EXISTS tbu_date_upd ON trans.karcis_hilang;
+
+CREATE TRIGGER tbu_date_upd
+    BEFORE UPDATE 
+    ON trans.fee
+    FOR EACH ROW
+    EXECUTE FUNCTION master.fn_tbu_date_upd();
+	

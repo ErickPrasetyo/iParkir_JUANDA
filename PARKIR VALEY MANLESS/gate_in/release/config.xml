@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<application>
+<setting>
+<database>
+<server_host>203.175.11.71</server_host>
+<server_port>5432</server_port>
+<db_name>dbp_valey</db_name>
+<db_usr_name>ideas</db_usr_name>
+<db_usr_passwd>9e969697ac</db_usr_passwd>
+</database>
+<client>
+<client01>client01</client01>
+<client02>client02</client02>
+</client>
+
+<skin>
+<style>tsOffice2007Obsidian</style>
+</skin>
+
+</setting>
+</application>
